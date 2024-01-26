@@ -223,6 +223,7 @@ export class WorkflowRunner {
 		// So that the timeout will also work for executions with nested workflows.
 		let executionTimeout: NodeJS.Timeout;
 
+		// Start executing the workflow
 		const workflowSettings = data.workflowData.settings ?? {};
 		let workflowTimeout = workflowSettings.executionTimeout ?? config.getEnv('executions.timeout'); // initialize with default
 		if (workflowTimeout > 0) {
@@ -245,6 +246,7 @@ export class WorkflowRunner {
 			settings: workflowSettings,
 			pinData,
 		});
+
 		const additionalData = await WorkflowExecuteAdditionalData.getBase(
 			data.userId,
 			undefined,
@@ -279,6 +281,8 @@ export class WorkflowRunner {
 					error,
 					error.node,
 				);
+				// TODO: do we really need to run this hook when permission check fails?
+				// should we not check this before creating the execution in the DB
 				await additionalData.hooks.executeHookFunctions('workflowExecuteAfter', [failedExecution]);
 				this.activeExecutions.remove(executionId, failedExecution);
 				return executionId;

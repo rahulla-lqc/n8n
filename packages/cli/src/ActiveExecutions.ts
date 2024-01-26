@@ -7,7 +7,9 @@ import type {
 	ExecutionStatus,
 } from 'n8n-workflow';
 import { ApplicationError, createDeferredPromise, sleep } from 'n8n-workflow';
+import { Semaphore } from 'n8n-core';
 
+import config from '@/config';
 import type {
 	ExecutionPayload,
 	IExecutingWorkflowData,
@@ -21,6 +23,9 @@ import { Logger } from '@/Logger';
 
 @Service()
 export class ActiveExecutions {
+	/** This is concurrency mechanism to limit the number of parallel executions in main and own mode */
+	private concurrencySemaphore = new Semaphore(config.getEnv('executions.concurrency'));
+
 	private activeExecutions: {
 		[executionId: string]: IExecutingWorkflowData;
 	} = {};
@@ -34,10 +39,10 @@ export class ActiveExecutions {
 	 * Add a new active execution
 	 */
 	async add(executionData: IWorkflowExecutionDataProcess, executionId?: string): Promise<string> {
-		let executionStatus: ExecutionStatus = executionId ? 'running' : 'new';
+		let executionStatus: ExecutionStatus;
 		if (executionId === undefined) {
 			// Is a new execution so save in DB
-
+			executionStatus = 'new';
 			const fullExecutionData: ExecutionPayload = {
 				data: executionData.executionData!,
 				mode: executionData.executionMode,
@@ -61,10 +66,10 @@ export class ActiveExecutions {
 			if (executionId === undefined) {
 				throw new ApplicationError('There was an issue assigning an execution id to the execution');
 			}
-			executionStatus = 'running';
 		} else {
+			// TODO: updating the status should happen after the concurrency check
 			// Is an existing execution we want to finish so update in DB
-
+			executionStatus = 'running';
 			const execution: Pick<IExecutionDb, 'id' | 'data' | 'waitTill' | 'status'> = {
 				id: executionId,
 				data: executionData.executionData!,
@@ -81,6 +86,9 @@ export class ActiveExecutions {
 			postExecutePromises: [],
 			status: executionStatus,
 		};
+
+		// Wait here in case execution concurrency limit is reached
+		await this.concurrencySemaphore.acquire(executionId);
 
 		return executionId;
 	}
@@ -110,13 +118,15 @@ export class ActiveExecutions {
 	}
 
 	/**
-	 * Remove an active execution
+	 * Remove an execution after it has finished or failed
 	 */
 	remove(executionId: string, fullRunData?: IRun): void {
 		const execution = this.activeExecutions[executionId];
 		if (execution === undefined) {
 			return;
 		}
+
+		this.concurrencySemaphore.release();
 
 		// Resolve all the waiting promises
 		for (const promise of execution.postExecutePromises) {
@@ -134,6 +144,12 @@ export class ActiveExecutions {
 		const execution = this.activeExecutions[executionId];
 		if (execution === undefined) {
 			// There is no execution running with that id
+			return;
+		}
+
+		if (execution.status === 'new') {
+			await this.executionRepository.updateStatus(executionId, 'canceled');
+			this.concurrencySemaphore.remove(executionId);
 			return;
 		}
 
@@ -175,6 +191,11 @@ export class ActiveExecutions {
 		return returnData;
 	}
 
+	getRunningExecutionIds() {
+		const executions = Object.entries(this.activeExecutions);
+		return executions.filter(([, value]) => value.status === 'running').map(([id]) => id);
+	}
+
 	setStatus(executionId: string, status: ExecutionStatus) {
 		this.getExecution(executionId).status = status;
 	}
@@ -194,6 +215,8 @@ export class ActiveExecutions {
 
 			await Promise.allSettled(stopPromises);
 		}
+
+		// TODO: cancel all `new` executions if they have any postExecutePromises/responsePromise
 
 		let count = 0;
 		while (executionIds.length !== 0) {
