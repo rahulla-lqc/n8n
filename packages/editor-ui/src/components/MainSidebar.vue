@@ -164,9 +164,7 @@ export default defineComponent({
 			useBecomeTemplateCreatorStore,
 		),
 		logoPath(): string {
-			if (this.isCollapsed) return this.basePath + 'n8n-logo-collapsed.svg';
-
-			return this.basePath + this.uiStore.logo;
+			return this.basePath + this.isCollapsed ? 'static/logo/collapsed.svg' : this.uiStore.logo;
 		},
 		hasVersionUpdates(): boolean {
 			return (
