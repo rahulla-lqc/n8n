@@ -342,7 +342,7 @@ export const routes = [
 		},
 		meta: {
 			middleware: ['authenticated'],
-			middelwareOptions: {
+			middlewareOptions: {
 				authenticated: {
 					bypass: () => {
 						const settingsStore = useSettingsStore();
