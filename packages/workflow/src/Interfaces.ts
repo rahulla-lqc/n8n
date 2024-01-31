@@ -2384,6 +2384,7 @@ export interface IN8nUISettings {
 	workflowTagsDisabled: boolean;
 	logLevel: LogLevel;
 	hiringBannerEnabled: boolean;
+	previewModeEnabled: boolean;
 	templates: {
 		enabled: boolean;
 		host: string;
