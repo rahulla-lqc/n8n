@@ -175,41 +175,15 @@ export const workflowRun = defineComponent({
 
 				const runData = this.workflowsStore.getWorkflowRunData;
 
-				let newRunData: IRunData | undefined;
+				let newRunData: IRunData = {};
 
 				const startNodes: string[] = [];
 
 				if (runData !== null && Object.keys(runData).length !== 0) {
-					newRunData = {};
-
-					// Go over the direct parents of the node
-					for (const directParentNode of directParentNodes) {
-						// Go over the parents of that node so that we can get a start
-						// node for each of the branches
-						const parentNodes = workflow.getParentNodes(directParentNode, NodeConnectionType.Main);
-
-						// Add also the enabled direct parent to be checked
-						if (workflow.nodes[directParentNode].disabled) continue;
-
-						parentNodes.push(directParentNode);
-
-						for (const parentNode of parentNodes) {
-							if (runData[parentNode] === undefined || runData[parentNode].length === 0) {
-								// When we hit a node which has no data we stop and set it
-								// as a start node the execution from and then go on with other
-								// direct input nodes
-								startNodes.push(parentNode);
-								break;
-							}
-							newRunData[parentNode] = runData[parentNode].slice(0, 1);
-						}
-					}
-
-					if (Object.keys(newRunData).length === 0) {
-						// If there is no data for any of the parent nodes make sure
-						// that run data is empty that it runs regularly
-						newRunData = undefined;
-					}
+					newRunData = Object.entries(runData).reduce((acc, [key, value]) => {
+						acc[key] = value.slice(0, 1);
+						return acc;
+					}, {});
 				}
 
 				let executedNode: string | undefined;
@@ -224,9 +198,6 @@ export const workflowRun = defineComponent({
 					startNodes.push(
 						...workflow.getChildNodes(options.triggerNode, NodeConnectionType.Main, 1),
 					);
-					newRunData = {
-						[options.triggerNode]: [options.nodeData],
-					};
 					executedNode = options.triggerNode;
 				}
 
