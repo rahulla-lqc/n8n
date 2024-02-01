@@ -175,16 +175,12 @@ export const workflowRun = defineComponent({
 
 				const runData = this.workflowsStore.getWorkflowRunData;
 
-				let newRunData: IRunData = {};
+				const newRunData = Object.entries(runData || {}).reduce((acc, [key, value]) => {
+					acc[key] = value.slice(0, 1);
+					return acc;
+				}, {} as IRunData);
 
 				const startNodes: string[] = [];
-
-				if (runData !== null && Object.keys(runData).length !== 0) {
-					newRunData = Object.entries(runData).reduce((acc, [key, value]) => {
-						acc[key] = value.slice(0, 1);
-						return acc;
-					}, {});
-				}
 
 				let executedNode: string | undefined;
 				if (
@@ -230,7 +226,7 @@ export const workflowRun = defineComponent({
 					executedNode,
 					data: {
 						resultData: {
-							runData: newRunData || {},
+							runData: newRunData,
 							pinData: workflowData.pinData,
 							startNodes,
 							workflowData,
