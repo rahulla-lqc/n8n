@@ -7,7 +7,7 @@ import type {
 	ILoadOptionsFunctions,
 	JsonObject,
 } from 'n8n-workflow';
-import { NodeApiError, NodeOperationError } from 'n8n-workflow';
+import { ExecutionBaseError, NodeApiError, NodeOperationError } from 'n8n-workflow';
 
 import flow from 'lodash/flow';
 import sortBy from 'lodash/sortBy';
@@ -76,6 +76,8 @@ export async function zohoApiRequest(
 
 		return responseData;
 	} catch (error) {
+		if (error instanceof ExecutionBaseError) throw error;
+
 		const args = error.cause?.data
 			? {
 					message: error.cause.data.message || 'The Zoho API returned an error.',
