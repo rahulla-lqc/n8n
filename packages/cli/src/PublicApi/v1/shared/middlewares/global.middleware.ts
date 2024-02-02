@@ -3,10 +3,12 @@
 import type express from 'express';
 import { Container } from 'typedi';
 
-import type { AuthenticatedRequest, PaginatedRequest } from '../../../types';
-import { decodeCursor } from '../services/pagination.service';
 import { License } from '@/License';
 import type { GlobalRole } from '@db/entities/User';
+import type { AuthenticatedRequest } from '@/requests';
+
+import { decodeCursor } from '../services/pagination.service';
+import type { PaginatedRequest } from '../../../types';
 
 const UNLIMITED_USERS_QUOTA = -1;
 
